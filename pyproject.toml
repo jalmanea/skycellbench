@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "skycellbench"
+version = "0.1.0"
+description = "Benchmark for multi-UAV aerial base station placement, scored by ns-3"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = ["numpy"]
+
+[project.optional-dependencies]
+rl = ["torch"]
+dev = ["pytest", "scipy"]
+
+[tool.setuptools]
+packages = ["skycellbench"]
+
+[tool.setuptools.package-data]
+skycellbench = ["link_curve.json"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

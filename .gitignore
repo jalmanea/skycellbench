@@ -1,0 +1,11 @@
+# built ns-3 scorer and trained policies are rebuilt locally
+ns3/bin/
+experiments/models/
+
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+.DS_Store
+.env

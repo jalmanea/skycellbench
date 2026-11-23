@@ -1,0 +1,55 @@
+# Does the moving task reward moving? Scores of four kinds of plan (closed-form scorer).
+# free = best position per epoch, no speed limit; myopic = each epoch optimised alone under the limit;
+# planner = whole trajectory optimised under the limit; static = one position for all epochs; mm = speed limit, m per epoch.
+
+## v0.1 generator (public set), 2 km
+{"inst": "moving-100000-k3-n150", "mm": 100.0, "free": 0.762, "myopic": 0.743, "planner": 0.743, "static": 0.73}
+{"inst": "moving-100000-k3-n150", "mm": 40.0, "free": 0.762, "myopic": 0.71, "planner": 0.742, "static": 0.727}
+{"inst": "moving-100001-k5-n200", "mm": 100.0, "free": 0.702, "myopic": 0.666, "planner": 0.667, "static": 0.646}
+{"inst": "moving-100001-k5-n200", "mm": 40.0, "free": 0.702, "myopic": 0.633, "planner": 0.648, "static": 0.647}
+{"inst": "moving-100002-k8-n250", "mm": 100.0, "free": 0.753, "myopic": 0.75, "planner": 0.75, "static": 0.75}
+{"inst": "moving-100002-k8-n250", "mm": 40.0, "free": 0.753, "myopic": 0.728, "planner": 0.752, "static": 0.747}
+{"inst": "moving-100003-k5-n150", "mm": 100.0, "free": 0.767, "myopic": 0.752, "planner": 0.767, "static": 0.764}
+{"inst": "moving-100003-k5-n150", "mm": 40.0, "free": 0.767, "myopic": 0.744, "planner": 0.766, "static": 0.765}
+
+## short events at 2-3 sites per UAV, 12 epochs, 2 km
+{"inst": "moving-1-k3-n150", "mm": 150.0, "free": 0.797, "myopic": 0.755, "planner": 0.769, "static": 0.763}
+{"inst": "moving-1-k3-n150", "mm": 75.0, "free": 0.797, "myopic": 0.73, "planner": 0.77, "static": 0.764}
+{"inst": "moving-2-k5-n200", "mm": 150.0, "free": 0.843, "myopic": 0.842, "planner": 0.842, "static": 0.812}
+{"inst": "moving-2-k5-n200", "mm": 75.0, "free": 0.843, "myopic": 0.822, "planner": 0.833, "static": 0.819}
+{"inst": "moving-3-k8-n250", "mm": 150.0, "free": 0.896, "myopic": 0.87, "planner": 0.872, "static": 0.873}
+{"inst": "moving-3-k8-n250", "mm": 75.0, "free": 0.896, "myopic": 0.838, "planner": 0.874, "static": 0.878}
+{"inst": "moving-4-k5-n150", "mm": 150.0, "free": 0.876, "myopic": 0.88, "planner": 0.88, "static": 0.869}
+{"inst": "moving-4-k5-n150", "mm": 75.0, "free": 0.876, "myopic": 0.874, "planner": 0.883, "static": 0.863}
+
+## same, 4 km
+{"demand_scale":1.0,"max_move_m":300}
+{"inst": "moving-1-k3-n150", "mm": 300.0, "free": 0.874, "myopic": 0.832, "planner": 0.864, "static": 0.841}
+{"inst": "moving-1-k3-n150", "mm": 150.0, "free": 0.874, "myopic": 0.814, "planner": 0.873, "static": 0.815}
+{"inst": "moving-2-k5-n200", "mm": 300.0, "free": 0.952, "myopic": 0.932, "planner": 0.952, "static": 0.93}
+{"inst": "moving-2-k5-n200", "mm": 150.0, "free": 0.952, "myopic": 0.91, "planner": 0.916, "static": 0.926}
+{"inst": "moving-3-k8-n250", "mm": 300.0, "free": 0.947, "myopic": 0.94, "planner": 0.963, "static": 0.952}
+{"inst": "moving-3-k8-n250", "mm": 150.0, "free": 0.947, "myopic": 0.89, "planner": 0.97, "static": 0.93}
+{"demand_scale":2.0}
+{"inst": "moving-1-k3-n150", "mm": 300.0, "free": 0.629, "myopic": 0.607, "planner": 0.656, "static": 0.627}
+{"inst": "moving-1-k3-n150", "mm": 150.0, "free": 0.629, "myopic": 0.627, "planner": 0.643, "static": 0.633}
+{"inst": "moving-2-k5-n200", "mm": 300.0, "free": 0.751, "myopic": 0.717, "planner": 0.74, "static": 0.716}
+{"inst": "moving-2-k5-n200", "mm": 150.0, "free": 0.751, "myopic": 0.685, "planner": 0.736, "static": 0.734}
+{"inst": "moving-3-k8-n250", "mm": 300.0, "free": 0.84, "myopic": 0.797, "planner": 0.801, "static": 0.794}
+{"inst": "moving-3-k8-n250", "mm": 150.0, "free": 0.84, "myopic": 0.689, "planner": 0.81, "static": 0.814}
+
+## same, 10 km
+{"side_m":10000,"demand_scale":1.0}
+{"inst": "moving-1-k3-n150", "mm": 800.0, "free": 0.512, "myopic": 0.523, "planner": 0.523, "static": 0.501}
+{"inst": "moving-1-k3-n150", "mm": 400.0, "free": 0.512, "myopic": 0.494, "planner": 0.53, "static": 0.498}
+{"inst": "moving-2-k5-n200", "mm": 800.0, "free": 0.658, "myopic": 0.606, "planner": 0.631, "static": 0.598}
+{"inst": "moving-2-k5-n200", "mm": 400.0, "free": 0.658, "myopic": 0.622, "planner": 0.632, "static": 0.604}
+{"inst": "moving-3-k8-n250", "mm": 800.0, "free": 0.751, "myopic": 0.717, "planner": 0.717, "static": 0.679}
+{"inst": "moving-3-k8-n250", "mm": 400.0, "free": 0.751, "myopic": 0.682, "planner": 0.739, "static": 0.756}
+{"side_m":10000,"demand_scale":2.0}
+{"inst": "moving-1-k3-n150", "mm": 800.0, "free": 0.36, "myopic": 0.249, "planner": 0.343, "static": 0.254}
+{"inst": "moving-1-k3-n150", "mm": 400.0, "free": 0.36, "myopic": 0.253, "planner": 0.327, "static": 0.249}
+{"inst": "moving-2-k5-n200", "mm": 800.0, "free": 0.488, "myopic": 0.426, "planner": 0.426, "static": 0.398}
+{"inst": "moving-2-k5-n200", "mm": 400.0, "free": 0.488, "myopic": 0.426, "planner": 0.426, "static": 0.415}
+{"inst": "moving-3-k8-n250", "mm": 800.0, "free": 0.569, "myopic": 0.545, "planner": 0.564, "static": 0.56}
+{"inst": "moving-3-k8-n250", "mm": 400.0, "free": 0.569, "myopic": 0.51, "planner": 0.58, "static": 0.54}
