@@ -7,7 +7,9 @@ from __future__ import annotations
 import numpy as np
 
 from .fast import Probe, score_fast
-from .instance import Instance, check
+from .instance import Instance, check, inside_building
+
+ROOF_CLEARANCE_M = 5.0
 
 
 def _valid(inst: Instance, u) -> bool:
@@ -22,6 +24,17 @@ def _repeat(inst: Instance, u: np.ndarray) -> np.ndarray:
     return np.repeat(u[None], inst.n_epochs, axis=0)
 
 
+def _lift(inst: Instance, u: np.ndarray) -> np.ndarray:
+    """On a scene, raise every UAV that is inside a building to just above its roof."""
+    hit = inside_building(inst, u)
+    if not hit.any():
+        return u
+    roof = inst.get_scene().building_height(u[..., :2]) + ROOF_CLEARANCE_M
+    u = u.copy()
+    u[..., 2] = np.where(hit, np.minimum(roof, inst.alt_max_m), u[..., 2])
+    return u
+
+
 def centre_placement(inst: Instance) -> np.ndarray:
     """Do-nothing baseline: every UAV at one safe point, mid altitude, never moving.
 
@@ -30,7 +43,7 @@ def centre_placement(inst: Instance) -> np.ndarray:
     mid = (inst.alt_min_m + inst.alt_max_m) / 2
     x, y = inst.gateway if inst.gateway is not None else (inst.side_m / 2, inst.side_m / 2)
     z = mid if inst.gateway is None else inst.alt_min_m
-    return _repeat(inst, np.tile([x, y, z], (inst.n_uav, 1)))
+    return _lift(inst, _repeat(inst, np.tile([x, y, z], (inst.n_uav, 1))))
 
 
 def random_placement(inst: Instance, rng, tries: int = 2000) -> np.ndarray:
@@ -59,6 +72,7 @@ def kmeans_placement(inst: Instance, rng, altitude: float = 100.0) -> np.ndarray
 
     With several epochs, the centres are tracked from epoch to epoch and each step is cut to the speed
     limit. Constrained task: the layout is shrunk towards the gateway until it is valid.
+    On a scene, a UAV that would be inside a building is raised to just above its roof.
     Needs the user positions, so it cannot be used on the blind task.
     """
     c = inst.xy(0)[rng.choice(len(inst.xy(0)), inst.n_uav, replace=False)].copy()
@@ -72,12 +86,13 @@ def kmeans_placement(inst: Instance, rng, altitude: float = 100.0) -> np.ndarray
             p = plan[-1] + step * np.minimum(1.0, inst.max_move_m / np.maximum(d, 1e-9))
             c = p[:, :2].copy()
         plan.append(p)
-    u = np.array(plan)
+    u = _lift(inst, np.array(plan))
     if inst.gateway is not None:
         g = np.array([*inst.gateway, inst.alt_min_m])
         for t in np.linspace(1, 0, 41):
             v = g + t * (u - g)
             v[..., 2] = np.clip(v[..., 2], inst.alt_min_m, inst.alt_max_m)
+            v = _lift(inst, v)
             if _valid(inst, v):
                 return v
     return u if _valid(inst, u) else centre_placement(inst)

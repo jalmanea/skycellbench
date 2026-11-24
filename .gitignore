@@ -9,3 +9,6 @@ __pycache__/
 .venv/
 .DS_Store
 .env
+
+# raw downloads a scene was built from (third-party data; scene.json records their hashes)
+scenes/*/raw/

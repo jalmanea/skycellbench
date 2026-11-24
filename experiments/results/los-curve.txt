@@ -1,0 +1,46 @@
+
+whole scene, random outdoor points: 1200000 links, line of sight on 34.6%; the old channel expects 20.0% at the same angles
+     elevation    links   scene  old channel
+       0-3 deg    78753   11.2%         3.0%
+       3-6 deg   217827   16.6%         4.5%
+      6-10 deg   318327   26.0%         7.5%
+     10-15 deg   256850   36.0%        13.8%
+     15-20 deg   126880   48.1%        26.3%
+     20-30 deg   109193   60.4%        51.4%
+     30-45 deg    55299   72.8%        86.1%
+     45-60 deg    20472   83.1%        98.5%
+     60-90 deg    10871   92.1%        99.9%
+  fitted curve: a = 4.04, b = 0.084 (old channel: a = 9.61, b = 0.16); line of sight half the time at 21 deg, old channel 24 deg
+
+users of public-cincinnati-downtown: 1200000 links, line of sight on 28.9%; the old channel expects 21.6% at the same angles
+     elevation    links   scene  old channel
+       0-3 deg    61943   11.0%         3.0%
+       3-6 deg   191403   12.7%         4.5%
+      6-10 deg   301813   19.1%         7.5%
+     10-15 deg   275807   26.6%        14.0%
+     15-20 deg   146223   37.0%        26.3%
+     20-30 deg   125025   50.9%        51.2%
+     30-45 deg    61308   64.9%        86.1%
+     45-60 deg    21873   77.0%        98.5%
+     60-90 deg    11190   88.2%        99.9%
+  fitted curve: a = 5.08, b = 0.077 (old channel: a = 9.61, b = 0.16); line of sight half the time at 26 deg, old channel 24 deg
+
+  by altitude above ground, users of the set:
+  50-100 m: scene 13.7%, old channel 8.0%
+  100-200 m: scene 26.2%, old channel 18.0%
+  200-300 m: scene 38.9%, old channel 32.0%
+
+
+answers of the gap check (50000 calls), mean over the instances of each task
+sight = share of links with line of sight (scene) or mean line-of-sight probability (old channel);
+excess = excess loss of the serving link; margin = loss of the second-best UAV minus loss of the serving one
+
+  task        answer    channel       score  alt m  dist m  angle  sight all  serving  excess dB  margin dB
+  constrained kmeans    scene         0.347    100     655   12.9      17.9%    42.7%       11.9        5.9
+  constrained kmeans    old channel   0.250    114     618   15.1      12.1%    24.3%       15.4        4.2
+  constrained reference scene         0.613    133     517   20.4      24.3%    72.1%        6.3       11.4
+  constrained reference old channel   0.569    173     433   31.3      24.2%    64.1%        7.8       12.1
+  place       kmeans    scene         0.688    115     292   29.9      20.4%    65.7%        7.5       14.8
+  place       kmeans    old channel   0.767    155     256   37.2      25.0%    73.6%        6.0       16.5
+  place       reference scene         0.821    128     338   28.5      22.0%    78.4%        5.1       17.2
+  place       reference old channel   0.843    204     270   40.2      30.7%    81.0%        4.6       17.0

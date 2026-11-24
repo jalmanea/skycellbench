@@ -8,7 +8,9 @@ import tempfile
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from .fast import epoch_mean
+import numpy as np
+
+from .fast import UE_HEIGHT_M, epoch_mean, path_loss_db
 from .instance import Instance, check
 
 BINARY = Path(os.environ.get("SKYCELLBENCH_NS3_BIN",
@@ -16,14 +18,19 @@ BINARY = Path(os.environ.get("SKYCELLBENCH_NS3_BIN",
 
 
 def write_scenario(inst: Instance, u, xy, demand, path) -> None:
-    """Flat text the C++ program reads: radio settings, UAV positions, users with demands."""
+    """Flat text the C++ program reads: radio settings, UAV positions, users with demands, and
+    the path loss table of fast.path_loss_db, one row per UAV. ns-3 computes no loss itself."""
     r = inst.radio
-    lines = [f"radio {r.freq_hz} {r.rb} {r.tx_power_dbm} {r.noise_figure_db} {r.a} {r.b} "
-             f"{r.eta_los_db} {r.eta_nlos_db}",
-             f"uavs {len(u)}"]
-    lines += [f"{x!r} {y!r} {z!r}" for x, y, z in u.tolist()]
+    loss = path_loss_db(inst, u, xy)
+    sc = inst.get_scene()
+    uz = (sc.ground(xy) if sc is not None else 0.0) + np.full(len(xy), UE_HEIGHT_M)
+    lines = [f"radio2 {r.rb} {r.tx_power_dbm} {r.noise_figure_db}", f"uavs {len(u)}"]
+    lines += [f"{x!r} {y!r} {z!r}" for x, y, z in inst.absolute(u).tolist()]
     lines.append(f"users {len(xy)}")
-    lines += [f"{x!r} {y!r} {d!r}" for (x, y), d in zip(xy.tolist(), demand.tolist())]
+    lines += [f"{x!r} {y!r} {z!r} {d!r}"
+              for (x, y), z, d in zip(xy.tolist(), uz.tolist(), demand.tolist())]
+    lines.append("loss")
+    lines += [" ".join(repr(v) for v in row) for row in loss.tolist()]
     Path(path).write_text("\n".join(lines) + "\n")
 
 

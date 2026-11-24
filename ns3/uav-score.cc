@@ -1,8 +1,14 @@
 // ns-3 LTE scorer: one multi-UAV placement in, one score out.
 //
 // Reads a scenario file written by skycellbench/ns3.py (radio settings, UAV positions, users with
-// their demands), builds an LTE network with an EPC core and one downlink UDP flow per user, and
-// prints one JSON line: the score (mean share of demand delivered) and the per-user throughput.
+// their demands, and the path loss of every UAV-user link), builds an LTE network with an EPC core
+// and one downlink UDP flow per user, and prints one JSON line: the score (mean share of demand
+// delivered) and the per-user throughput.
+//
+// The path loss is not computed here. skycellbench computes one loss table per placement and both
+// scorers use it; ns-3 takes it through its own MatrixPropagationLossModel, which LTE accepts
+// like any other path loss model. Positions are passed for completeness and do not affect the
+// radio.
 //
 // Compiled outside the ns-3 tree against an existing optimised ns-3.48 build (see build.sh).
 
@@ -24,69 +30,6 @@
 #include <vector>
 
 using namespace ns3;
-
-// Mean air-to-ground path loss (Al-Hourani et al., 2014): free-space loss plus the expected
-// excess loss, weighted by the line-of-sight probability at the link's elevation angle. It is a
-// smooth function of position, the same formula as skycellbench/fast.py.
-class A2gMeanLossModel : public PropagationLossModel
-{
-  public:
-    static TypeId GetTypeId()
-    {
-        static TypeId tid =
-            TypeId("A2gMeanLossModel")
-                .SetParent<PropagationLossModel>()
-                .AddConstructor<A2gMeanLossModel>()
-                .AddAttribute("Frequency", "Carrier frequency (Hz)", DoubleValue(2.12e9),
-                              MakeDoubleAccessor(&A2gMeanLossModel::m_freq),
-                              MakeDoubleChecker<double>())
-                .AddAttribute("A", "Sigmoid parameter a", DoubleValue(9.61),
-                              MakeDoubleAccessor(&A2gMeanLossModel::m_a),
-                              MakeDoubleChecker<double>())
-                .AddAttribute("B", "Sigmoid parameter b", DoubleValue(0.16),
-                              MakeDoubleAccessor(&A2gMeanLossModel::m_b),
-                              MakeDoubleChecker<double>())
-                .AddAttribute("EtaLos", "Excess loss, line-of-sight (dB)", DoubleValue(1.0),
-                              MakeDoubleAccessor(&A2gMeanLossModel::m_etaLos),
-                              MakeDoubleChecker<double>())
-                .AddAttribute("EtaNlos", "Excess loss, non-line-of-sight (dB)", DoubleValue(20.0),
-                              MakeDoubleAccessor(&A2gMeanLossModel::m_etaNlos),
-                              MakeDoubleChecker<double>());
-        return tid;
-    }
-
-    double LossDb(const Vector& pa, const Vector& pb) const
-    {
-        const double dz = std::abs(pa.z - pb.z);
-        const double r = std::hypot(pa.x - pb.x, pa.y - pb.y);
-        const double d = std::max(1.0, std::hypot(r, dz));
-        const double thetaDeg = std::atan2(dz, std::max(r, 1e-9)) * 180.0 / M_PI;
-        const double pLos = 1.0 / (1.0 + m_a * std::exp(-m_b * (thetaDeg - m_a)));
-        const double fspl = 20.0 * std::log10(4.0 * M_PI * m_freq * d / 299792458.0);
-        return fspl + pLos * m_etaLos + (1.0 - pLos) * m_etaNlos;
-    }
-
-  private:
-    double DoCalcRxPower(double txPowerDbm,
-                         Ptr<MobilityModel> a,
-                         Ptr<MobilityModel> b) const override
-    {
-        return txPowerDbm - LossDb(a->GetPosition(), b->GetPosition());
-    }
-
-    int64_t DoAssignStreams(int64_t) override
-    {
-        return 0;
-    }
-
-    double m_freq;
-    double m_a;
-    double m_b;
-    double m_etaLos;
-    double m_etaNlos;
-};
-
-NS_OBJECT_ENSURE_REGISTERED(A2gMeanLossModel);
 
 static std::vector<uint64_t> g_rxAtStart;
 
@@ -123,9 +66,14 @@ main(int argc, char* argv[])
         return 2;
     }
     std::string tag;
-    double freq, txPower, noiseFigure, a, b, etaLos, etaNlos;
+    double txPower, noiseFigure;
     uint32_t rb, nUav, nUe;
-    in >> tag >> freq >> rb >> txPower >> noiseFigure >> a >> b >> etaLos >> etaNlos;
+    in >> tag >> rb >> txPower >> noiseFigure;
+    if (tag != "radio2")
+    {
+        std::cerr << "scenario file is not in the loss-table format" << std::endl;
+        return 2;
+    }
     in >> tag >> nUav;
     std::vector<Vector> uavPos(nUav);
     for (auto& p : uavPos)
@@ -137,10 +85,19 @@ main(int argc, char* argv[])
     std::vector<double> demand(nUe);
     for (uint32_t i = 0; i < nUe; ++i)
     {
-        in >> uePos[i].x >> uePos[i].y >> demand[i];
-        uePos[i].z = 1.5;
+        in >> uePos[i].x >> uePos[i].y >> uePos[i].z >> demand[i];
     }
-    if (!in || tag != "users")
+    std::string tagLoss;
+    in >> tagLoss;
+    std::vector<std::vector<double>> lossDb(nUav, std::vector<double>(nUe));
+    for (auto& row : lossDb)
+    {
+        for (auto& v : row)
+        {
+            in >> v;
+        }
+    }
+    if (!in || tag != "users" || tagLoss != "loss")
     {
         std::cerr << "malformed scenario file" << std::endl;
         return 2;
@@ -157,11 +114,6 @@ main(int argc, char* argv[])
     // through the run, so the score does not depend on how long the simulation lasts.
     Config::SetDefault("ns3::LteUePhy::EnableRlfDetection", BooleanValue(false));
     Config::SetDefault("ns3::UdpClient::MaxPackets", UintegerValue(0));
-    Config::SetDefault("A2gMeanLossModel::Frequency", DoubleValue(freq));
-    Config::SetDefault("A2gMeanLossModel::A", DoubleValue(a));
-    Config::SetDefault("A2gMeanLossModel::B", DoubleValue(b));
-    Config::SetDefault("A2gMeanLossModel::EtaLos", DoubleValue(etaLos));
-    Config::SetDefault("A2gMeanLossModel::EtaNlos", DoubleValue(etaNlos));
 
     Ptr<UniformRandomVariable> uni = CreateObject<UniformRandomVariable>();
 
@@ -189,22 +141,39 @@ main(int argc, char* argv[])
     Ptr<LteHelper> lte = CreateObject<LteHelper>();
     Ptr<PointToPointEpcHelper> epc = CreateObject<PointToPointEpcHelper>();
     lte->SetEpcHelper(epc);
-    lte->SetPathlossModelType(A2gMeanLossModel::GetTypeId());
+    lte->SetPathlossModelType(MatrixPropagationLossModel::GetTypeId());
     lte->SetSchedulerType(scheduler);
     lte->SetEnbDeviceAttribute("DlBandwidth", UintegerValue(rb));
     lte->SetEnbDeviceAttribute("UlBandwidth", UintegerValue(rb));
     NetDeviceContainer enbDevs = lte->InstallEnbDevice(enbNodes);
     NetDeviceContainer ueDevs = lte->InstallUeDevice(ueNodes);
 
-    // Each user attaches to the UAV with the lowest path loss.
-    Ptr<A2gMeanLossModel> probe = CreateObject<A2gMeanLossModel>();
+    // The helper has created one loss model per direction; fill both from the table. Only
+    // UAV-user pairs ever exchange signals, so every other pair keeps a loss no signal survives.
+    for (const auto& channel : {lte->GetDownlinkSpectrumChannel(), lte->GetUplinkSpectrumChannel()})
+    {
+        Ptr<MatrixPropagationLossModel> m =
+            DynamicCast<MatrixPropagationLossModel>(channel->GetPropagationLossModel());
+        NS_ABORT_MSG_IF(!m, "the LTE channel does not use the matrix loss model");
+        m->SetDefaultLoss(400.0);
+        for (uint32_t k = 0; k < nUav; ++k)
+        {
+            Ptr<MobilityModel> a = enbNodes.Get(k)->GetObject<MobilityModel>();
+            for (uint32_t i = 0; i < nUe; ++i)
+            {
+                m->SetLoss(a, ueNodes.Get(i)->GetObject<MobilityModel>(), lossDb[k][i]);
+            }
+        }
+    }
+
+    // Each user attaches to the UAV with the lowest path loss (the first one on a tie).
     std::vector<uint32_t> serving(nUe, 0);
     for (uint32_t i = 0; i < nUe; ++i)
     {
         double bl = 1e30;
         for (uint32_t k = 0; k < nUav; ++k)
         {
-            const double l = probe->LossDb(uavPos[k], uePos[i]);
+            const double l = lossDb[k][i];
             if (l < bl)
             {
                 bl = l;

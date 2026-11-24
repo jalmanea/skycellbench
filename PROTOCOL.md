@@ -22,6 +22,9 @@ scores 0 for that instance and is counted as invalid in the report.
   200000 and up. It is used once, for the reported results.
 - Public set: `instances/public`, seeds 100000 and up. All development, tuning and training
   checks use this set or freshly generated instances with seeds below 90000.
+- Both sets stand on flat ground with the statistical channel. `instances/public-cincinnati-downtown`
+  holds the public seeds on the Cincinnati scene (`README.md`, Scenes). It is a development set
+  like `instances/public`; no held-out set exists on the scene (open decision 5).
 - No controller, prompt, hyperparameter or scorer setting may be changed after any held-out
   instance has been scored. If one must change, the change and its reason are recorded under
   section 8, and all controllers are rerun.
@@ -30,6 +33,7 @@ scores 0 for that instance and is counted as invalid in the report.
 
 - Reported score: ns-3.48 LTE (`score_ns3`), settings as in `README.md`, 2 s measured, run
   number 1.
+- Both scorers take the path loss of every link from one table computed by `fast.path_loss_db`.
 - The closed-form scorer (`score_fast`) is what controllers may call while they work. Its score
   on the final answer is reported beside the ns-3 score, never in its place.
 - A controller never calls ns-3.
@@ -94,6 +98,11 @@ None yet.
 - ns-3 run-to-run variation: 15 answers with 4 run numbers each; the standard deviation of the
   score is 0.0015 on average and 0.005 at most, so one run per answer is enough.
 
+- On the Cincinnati scene (`instances/public-cincinnati-downtown`): 170 answers, Spearman 0.99
+  to 1.00 per task; the closed-form score is higher than ns-3 by 0.03 to 0.05 on average, by
+  0.17 at most, and lower for one answer (by 0.003); ns-3 keeps the order of 394 of 397
+  controller pairs.
+
 ## Open decisions before freezing
 
 1. **Size of the held-out set.** It has 10 instances per task. With 10, an interval on a paired
@@ -102,4 +111,8 @@ None yet.
 2. **The LLM controller.** Model, prompt, number of model calls and token limit, and whether it
    enters the low track only.
 3. **RL baseline.** Enter the current policy as it is, or retrain first.
-4. **Licence.**
+4. **Licence.** The scene data is derived from OpenStreetMap and stays under the ODbL
+   whatever is chosen for the code (`scenes/cincinnati-downtown/SOURCES.md`).
+5. **Scenes.** Whether the reported results are on flat ground, on the Cincinnati scene, or on
+   both. If the scene is used: generate its held-out set (`experiments/make_sets.py` writes only
+   the public one), and retrain or drop the RL policies, which were trained on flat ground.

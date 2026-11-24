@@ -1,0 +1,11 @@
+k-means against a local search with 50000 calls; closed-form scores
+
+constrained: 10 instances
+  scene        k-means 0.347  reference 0.613  gap 0.266 (min 0.094, max 0.558)
+  old channel  k-means 0.250  reference 0.569  gap 0.319 (min 0.178, max 0.612)
+  gap on the scene minus gap on the old channel: mean -0.053; larger on the scene in 3 of 10 instances
+
+place: 10 instances
+  scene        k-means 0.688  reference 0.821  gap 0.133 (min 0.072, max 0.254)
+  old channel  k-means 0.767  reference 0.843  gap 0.076 (min 0.039, max 0.147)
+  gap on the scene minus gap on the old channel: mean +0.057; larger on the scene in 9 of 10 instances

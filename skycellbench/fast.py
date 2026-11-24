@@ -1,10 +1,13 @@
 """Closed-form scorer: no simulation, a few hundred microseconds per placement.
 
 It follows the same chain as the ns-3 LTE scorer, in closed form:
-  mean air-to-ground path loss -> strongest-cell association -> SINR with interference scaled by
+  path loss table -> strongest-cell association -> SINR with interference scaled by
   how busy each neighbour is -> link curve measured from ns-3 -> proportional-fair sharing
   of each cell among its users, capped at each user's demand.
 The cell loads and the SINRs depend on each other, so they are solved by fixed-point iteration.
+
+The path loss table (`path_loss_db`, one row per UAV, one column per user) is computed here for
+both scorers: the ns-3 scorer is handed the same table and computes no loss of its own.
 """
 from __future__ import annotations
 
@@ -30,14 +33,28 @@ def spectral_efficiency(sinr_db: np.ndarray) -> np.ndarray:
 
 
 def path_loss_db(inst: Instance, uavs: np.ndarray, xy: np.ndarray) -> np.ndarray:
-    """Mean air-to-ground loss, shape (K, N): free space plus the expected excess loss."""
+    """Path loss in dB, shape (K, N): free space plus an excess loss.
+
+    Without a scene the excess is its expected value (Al-Hourani et al., 2014): the line-of-sight
+    and non-line-of-sight excess losses weighted by a line-of-sight probability that depends only
+    on the elevation angle. On a scene the probability is replaced by the geometric test
+    (`Scene.los`): each link has either the line-of-sight excess or the other one. `uavs` holds
+    altitudes above the ground.
+    """
     r = inst.radio
+    sc = inst.get_scene()
     d2 = uavs[:, None, :2] - xy[None, :, :]
     ground = np.hypot(d2[..., 0], d2[..., 1])
-    dz = np.abs(uavs[:, 2:3] - UE_HEIGHT_M)
+    if sc is None:
+        dz = np.abs(uavs[:, 2:3] - UE_HEIGHT_M)
+        theta = np.degrees(np.arctan2(dz, np.maximum(ground, 1e-9)))
+        p_los = 1.0 / (1.0 + r.a * np.exp(-r.b * (theta - r.a)))
+    else:
+        pu = inst.absolute(uavs)
+        px = np.column_stack([xy, sc.ground(xy) + UE_HEIGHT_M])
+        dz = np.abs(pu[:, 2:3] - px[None, :, 2])
+        p_los = np.array([sc.los(p, px) for p in pu], float)
     dist = np.maximum(1.0, np.hypot(ground, dz))
-    theta = np.degrees(np.arctan2(dz, np.maximum(ground, 1e-9)))
-    p_los = 1.0 / (1.0 + r.a * np.exp(-r.b * (theta - r.a)))
     fspl = 20.0 * np.log10(4.0 * np.pi * r.freq_hz * dist / 299792458.0)
     return fspl + p_los * r.eta_los_db + (1.0 - p_los) * r.eta_nlos_db
 
@@ -116,6 +133,11 @@ def _snapshot(inst: Instance, u: np.ndarray, xy: np.ndarray, demand: np.ndarray,
                    uav_users=np.bincount(serving, minlength=k).tolist(),
                    uav_demand_mbps=np.bincount(serving, demand, minlength=k).tolist(),
                    uav_delivered_mbps=np.bincount(serving, thr, minlength=k).tolist())
+        if inst.scene:                      # does each user see the UAV that serves it?
+            sc = inst.get_scene()
+            px = np.column_stack([xy, sc.ground(xy) + UE_HEIGHT_M])
+            pu = inst.absolute(u)
+            out["los"] = np.array([sc.los(p, px) for p in pu])[serving, np.arange(n)].tolist()
     return out
 
 

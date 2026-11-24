@@ -17,7 +17,7 @@ from torch import nn
 
 from .baselines import centre_placement
 from .fast import Probe, epoch_mean, feedback
-from .instance import Instance, connected
+from .instance import Instance, connected, inside_building
 
 STEPS, PATCH, CELL_M, NEAR = 29, 7, 200.0, 3
 STEP_M = np.array([200.0, 200.0, 50.0])
@@ -58,6 +58,8 @@ class PlacementEnv:
     def _ok(self, u) -> bool:
         i = self.inst
         if any((np.hypot(u[:, 0] - x, u[:, 1] - y) < r).any() for x, y, r in i.no_fly):
+            return False
+        if inside_building(i, u).any():
             return False
         return i.gateway is None or connected(i, u)
 

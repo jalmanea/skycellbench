@@ -1,0 +1,52 @@
+[
+ {
+  "label": "Cincinnati, place, 8 UAVs: k-means (0.58)",
+  "instance": "place-cincinnati-downtown-100002-k8-n250.json",
+  "answer": "place-cincinnati-downtown-100002-k8-n250.kmeans.json"
+ },
+ {
+  "label": "Cincinnati, place, 8 UAVs: search, 4,000 calls (0.77)",
+  "instance": "place-cincinnati-downtown-100002-k8-n250.json",
+  "answer": "place-cincinnati-downtown-100002-k8-n250.search.json"
+ },
+ {
+  "label": "Cincinnati, place, 3 UAVs: k-means (0.71)",
+  "instance": "place-cincinnati-downtown-100000-k3-n150.json",
+  "answer": "place-cincinnati-downtown-100000-k3-n150.kmeans.json"
+ },
+ {
+  "label": "Cincinnati, place, 3 UAVs: search, 4,000 calls (0.79)",
+  "instance": "place-cincinnati-downtown-100000-k3-n150.json",
+  "answer": "place-cincinnati-downtown-100000-k3-n150.search.json"
+ },
+ {
+  "label": "Cincinnati, constrained, 5 UAVs: k-means (0.29)",
+  "instance": "constrained-cincinnati-downtown-100001-k5-n200.json",
+  "answer": "constrained-cincinnati-downtown-100001-k5-n200.kmeans.json"
+ },
+ {
+  "label": "Cincinnati, constrained, 5 UAVs: search, 4,000 calls (0.59)",
+  "instance": "constrained-cincinnati-downtown-100001-k5-n200.json",
+  "answer": "constrained-cincinnati-downtown-100001-k5-n200.search.json"
+ },
+ {
+  "label": "flat ground, place, 5 UAVs: k-means (0.75)",
+  "instance": "place-100001-k5-n200.json",
+  "answer": "place-100001-k5-n200.kmeans.json"
+ },
+ {
+  "label": "flat ground, place, 5 UAVs: search, 4,000 calls (0.80)",
+  "instance": "place-100001-k5-n200.json",
+  "answer": "place-100001-k5-n200.search.json"
+ },
+ {
+  "label": "Cincinnati, moving users, 8 UAVs, 8 epochs: UAVs stay put (0.82)",
+  "instance": "moving-drift-3-k8-n250.json",
+  "answer": "moving-drift-3-k8-n250.static.json"
+ },
+ {
+  "label": "Cincinnati, moving users, 8 UAVs, 8 epochs: UAVs follow, 100 m per epoch (0.87)",
+  "instance": "moving-drift-3-k8-n250.json",
+  "answer": "moving-drift-3-k8-n250.myopic.json"
+ }
+]

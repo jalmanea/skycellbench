@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>skycellbench viewer</title>
+<style>
+  :root { --ink: #1c2328; --soft: #5a666e; --line: #d9dee1; --panel: rgba(250, 251, 251, .94); }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #c4d4dc; color: var(--ink);
+    font: 13px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  #view { position: fixed; inset: 0; outline: none; cursor: grab; }
+  #view:active { cursor: grabbing; }
+  #view canvas { display: block; width: 100%; height: 100%; }
+  #panel { position: fixed; top: 12px; left: 12px; width: 330px; max-height: calc(100% - 24px);
+    overflow: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+    padding: 14px 16px 12px; box-shadow: 0 6px 24px rgba(20, 30, 40, .16); }
+  h1 { font-size: 15px; margin: 0 0 2px; letter-spacing: .01em; }
+  h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--soft);
+    margin: 14px 0 6px; font-weight: 600; }
+  .sub { color: var(--soft); margin: 0; overflow-wrap: anywhere; }
+  .score { display: flex; align-items: baseline; gap: 8px; margin-top: 8px; }
+  .score b { font-size: 30px; font-weight: 650; font-variant-numeric: tabular-nums; }
+  select, button, input[type=file] { font: inherit; }
+  select { width: 100%; padding: 5px 6px; border: 1px solid var(--line); border-radius: 6px; background: #fff; }
+  button { padding: 4px 10px; border: 1px solid var(--line); border-radius: 6px; background: #fff; cursor: pointer; }
+  button:hover { background: #f0f3f4; }
+  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  th { text-align: right; font-weight: 600; color: var(--soft); font-size: 11px; padding: 2px 4px; }
+  td { text-align: right; padding: 3px 4px; border-top: 1px solid var(--line); }
+  th:first-child, td:first-child { text-align: left; }
+  .chip { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
+  .bar { height: 10px; border-radius: 5px; margin: 2px 0;
+    background: linear-gradient(90deg, #d73027, #fc8d59, #fee090, #e0f3f8, #91bfdb, #4575b4); }
+  .ends { display: flex; justify-content: space-between; color: var(--soft); font-size: 11px; }
+  .key { display: flex; align-items: center; gap: 8px; color: var(--soft); margin-top: 3px; }
+  .key i { display: inline-block; width: 26px; border-top: 2px solid #3182bd; }
+  .key i.faint { opacity: .3; }
+  label.t { display: flex; align-items: center; gap: 7px; margin: 2px 0; }
+  details { margin-top: 10px; } summary { cursor: pointer; color: var(--soft); }
+  .files label { display: block; margin-top: 6px; color: var(--soft); font-size: 11px; }
+  .files input { width: 100%; }
+  #epochRow { display: none; align-items: center; gap: 8px; }
+  #epochRow input { flex: 1; }
+  #note { color: #a04a00; margin: 6px 0 0; display: none; }
+  #credit { position: fixed; right: 10px; bottom: 8px; font-size: 11px; color: #25323a;
+    background: rgba(255, 255, 255, .78); padding: 3px 8px; border-radius: 6px; max-width: 70%; }
+  #credit a { color: inherit; }
+  #help { position: fixed; right: 10px; top: 10px; font-size: 11px; color: #25323a;
+    background: rgba(255, 255, 255, .78); padding: 3px 8px; border-radius: 6px; }
+  #tip { position: fixed; display: none; pointer-events: none; background: rgba(28, 35, 40, .92); color: #fff;
+    padding: 6px 9px; border-radius: 6px; font-size: 12px; white-space: nowrap; z-index: 5; }
+  #status { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+    font-size: 15px; color: #25323a; pointer-events: none; }
+  kbd { font: inherit; background: #fff; border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; }
+</style>
+<script type="importmap">{ "imports": { "three": "./vendor/three/three.module.min.js" } }</script>
+</head>
+<body>
+<div id="view" tabindex="0" aria-label="3D view. Drag to look, W A S D to move, Q and E for down and up."></div>
+<div id="status">Loading…</div>
+
+<aside id="panel">
+  <h1>skycellbench viewer</h1>
+  <p class="sub" id="instanceLine">—</p>
+  <div class="score"><b id="score">—</b><span class="sub" id="scoreNote"></span></div>
+  <p id="note"></p>
+
+  <div id="exampleBox">
+    <h2>Example</h2>
+    <select id="example" aria-label="Example to show"></select>
+  </div>
+
+  <div id="epochBox">
+    <div id="epochRow"><button id="play" type="button">Play</button>
+      <input id="epoch" type="range" min="0" max="0" value="0" aria-label="Epoch"><span id="epochText"></span></div>
+  </div>
+
+  <h2>Users</h2>
+  <div class="bar" role="img" aria-label="Colour scale from red, none of the demand delivered, to blue, all of it"></div>
+  <div class="ends"><span>0% of demand delivered</span><span>100%</span></div>
+  <p class="sub" style="margin-top:4px">A bigger dot asks for more (0.5, 1 or 2 Mbit/s). <span id="usersLine"></span></p>
+
+  <h2>UAVs</h2>
+  <table id="uavs"><thead><tr><th>UAV</th><th title="altitude above ground">alt m</th><th>users</th>
+    <th title="users with line of sight to the UAV that serves them">in sight</th>
+    <th title="delivered / asked, Mbit/s">Mbit/s</th></tr></thead><tbody></tbody></table>
+  <div class="key"><i></i>line of sight to the serving UAV</div>
+  <div class="key"><i class="faint"></i>served through a building or the ground</div>
+
+  <h2>Show</h2>
+  <label class="t"><input type="checkbox" id="showLos" checked> links with line of sight</label>
+  <label class="t"><input type="checkbox" id="showNlos" checked> links without line of sight</label>
+  <label class="t"><input type="checkbox" id="showBuildings" checked> buildings</label>
+  <label class="t"><input type="checkbox" id="glass"> see-through buildings</label>
+  <label class="t"><input type="checkbox" id="showRules" checked> no-fly zones and backhaul</label>
+  <div style="margin-top:6px"><button id="reset" type="button">Reset view</button>
+    <button id="top" type="button">From above</button></div>
+
+  <details class="files">
+    <summary>Open other files</summary>
+    <label>Instance (.json)<input type="file" id="fInstance" accept=".json"></label>
+    <label>Answer: a placement, scored with <code>python -m skycellbench view</code><input type="file" id="fAnswer" accept=".json"></label>
+    <label>Scene (only if it is not <code>scenes/&lt;id&gt;/scene.json</code>)<input type="file" id="fScene" accept=".json"></label>
+    <p class="sub">Or in the address: <code>?instance=…&amp;answer=…</code> with paths relative to this page.</p>
+  </details>
+</aside>
+
+<div id="help"><kbd>drag</kbd> look · <kbd>W A S D</kbd> move · <kbd>Q</kbd>/<kbd>E</kbd> down/up · <kbd>Shift</kbd> faster · <kbd>wheel</kbd> forward/back · hover a user</div>
+<div id="credit"></div>
+<div id="tip"></div>
+<script type="module" src="./main.js"></script>
+</body>
+</html>
