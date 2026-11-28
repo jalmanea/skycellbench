@@ -3,9 +3,12 @@
   python experiments/headroom.py public [calls] [task ...]
 The search sees the users even on the blind task, so the number is what a controller with
 unlimited tries and full information reaches, not a baseline. Closed-form scorer.
-Appends to results/headroom-<set>.jsonl and skips what is already there.
+Appends to results/headroom-<set>.jsonl and skips what is already there. Runs 4 searches at a
+time, or $WORKERS. Each row records the commit it was run from.
 """
 import json
+import os
+import subprocess
 import sys
 from multiprocessing import Pool
 from pathlib import Path
@@ -20,20 +23,22 @@ name = sys.argv[1]
 calls = int(sys.argv[2]) if len(sys.argv) > 2 else 200_000
 tasks = sys.argv[3:] or list(ub.TASKS)
 out = root / "results" / f"headroom-{name}.jsonl"
+commit = subprocess.run(["git", "-C", str(root), "rev-parse", "HEAD"], capture_output=True,
+                        text=True).stdout.strip()
 
 
 def run(path):
     inst = ub.Instance.load(path)
     u = local_search(inst, np.random.default_rng([inst.seed, 99]), budget=calls)
     return dict(instance=inst.id, task=inst.task, calls=calls,
-                fast=ub.score_fast(inst, u)["score"], uavs=np.round(u, 2).tolist())
+                fast=ub.score_fast(inst, u)["score"], uavs=np.round(u, 2).tolist(), commit=commit)
 
 
 if __name__ == "__main__":
     done = {json.loads(l)["instance"] for l in out.open()} if out.exists() else set()
     paths = [p for p in sorted((root.parent / "instances" / name).glob("*.json"))
              if p.stem.split("-")[0] in tasks and ub.Instance.load(p).id not in done]
-    with Pool(4) as pool, out.open("a") as f:
+    with Pool(int(os.environ.get("WORKERS", 4))) as pool, out.open("a") as f:
         for row in pool.imap_unordered(run, paths):
             f.write(json.dumps(row) + "\n")
             f.flush()
