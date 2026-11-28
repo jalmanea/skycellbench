@@ -269,3 +269,24 @@ def test_viewer_examples_match_their_instances():
         assert answer.instance == inst.id
         ub.check(inst, answer.uavs)
         assert np.isclose(answer.result["score"], ub.score_fast(inst, answer.uavs)["score"])
+
+
+@pytest.mark.parametrize("name,base,scene", [
+    ("public", 100000, None), ("heldout", 200000, None),
+    (f"public-{CITY}", 100000, CITY), (f"heldout-{CITY}", 200000, CITY)])
+def test_instance_sets_are_what_the_generator_writes(name, base, scene, tmp_path):
+    """Every set on disk is regenerated from its seeds and compared, both written in the current
+    format (the flat sets are older files). Nothing is scored: held-out files are only loaded."""
+    files = sorted((Path(__file__).resolve().parent.parent / "instances" / name).glob("*.json"))
+    per_task = 30 if name.startswith("heldout") else 10
+    assert len(files) == 3 * per_task
+    for f in files:
+        inst = ub.Instance.load(f)
+        assert inst.scene == scene
+        seed = int(f.stem.split("-")[-3])
+        assert base <= seed < base + per_task
+        again = ub.generate(seed, inst.task, n_uav=inst.n_uav, n_users=len(inst.users),
+                            scene=scene)
+        again.save(tmp_path / "a.json")
+        inst.save(tmp_path / "b.json")
+        assert (tmp_path / "a.json").read_bytes() == (tmp_path / "b.json").read_bytes(), f.name

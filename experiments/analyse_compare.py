@@ -12,7 +12,7 @@ from scipy.stats import spearmanr
 rows = [json.loads(l) for l in
         (Path(__file__).parent / "results" / f"compare-{sys.argv[1]}.jsonl").open()]
 rows = [r for r in rows if "ns3" in r]
-order = ["centre", "random", "kmeans", "rl", "search30", "search"]
+order = ["centre", "random", "kmeans", "rl", "rl_scene", "search30", "search"]
 for task in sorted({r["task"] for r in rows}):
     rs = [r for r in rows if r["task"] == task]
     f, n = np.array([r["fast"] for r in rs]), np.array([r["ns3"] for r in rs])

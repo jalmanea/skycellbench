@@ -1,6 +1,6 @@
 # SkyCellBench: a benchmark for multi-UAV aerial base station placement
 
-Version 0.1, not frozen. The licence is not decided yet.
+Version 0.1. The evaluation protocol is frozen (`PROTOCOL.md`, 2026-11-28). The licence is not decided yet.
 
 ## The tasks
 
@@ -102,10 +102,11 @@ Each run has 0.5 s to attach, 0.3 s of traffic to settle and 2 s that are measur
 - `skycellbench/baselines.py`: centre (do nothing), random, k-means, local search.
 - `skycellbench/rl.py`: step-by-step environment (reset/step) and the PPO policy.
 - `skycellbench/controllers.py`: the controllers that are compared, behind one call.
-- `instances/public`, `instances/heldout`: 10 instances per task each, on flat ground. The
-  held-out set is for the reported scores and must not be scored before the protocol is frozen.
-  `instances/public-cincinnati-downtown`: the public seeds on the scene. There is no held-out
-  set on the scene yet.
+- `instances/public`, `instances/heldout`: on flat ground, 10 instances per task in the public
+  set and 30 in the held-out set. The held-out set is for the reported scores, scored once under
+  the frozen protocol (`PROTOCOL.md`).
+  `instances/public-cincinnati-downtown`, `instances/heldout-cincinnati-downtown`: the same
+  seeds on the scene, under the same rule.
 - `experiments/`: link-curve measurement, scorer agreement check, RL training, controller
   comparison, reference search, the scene checks (`scene_gap.py`, `scene_gap_ns3.py`,
   `los_curve.py`), the moving-users tests (`moving_scene.py`, `moving_limit.py`,
@@ -150,9 +151,8 @@ From Python: `skycellbench.generate(seed, task, scene=None)`, `skycellbench.scor
 
 ## Not done yet
 
-The LLM baseline, freezing the evaluation protocol (`PROTOCOL.md` is a draft), the held-out run
-with ns-3, and the licence. For the scene: a held-out set, RL policies trained on it, and the
-choice of whether results are reported on flat ground, on the scene or on both.
+The held-out run with ns-3 on both grounds, under the frozen `PROTOCOL.md`; then an LLM
+controller, which the protocol allows to be added later under fixed rules; and the licence.
 
 ## Do the two scorers agree?
 
@@ -215,25 +215,45 @@ Everything above this section was measured on flat ground. The same checks on
 `instances/public-cincinnati-downtown` (the public seeds on the scene, 30 instances):
 
 **The scorers agree as they do on flat ground** (`experiments/compare.py
-public-cincinnati-downtown --ns3`, 170 answers from the six controllers):
+public-cincinnati-downtown --ns3`, 200 answers from the seven controllers, the RL policy
+trained on the scene included):
 
 | Task | Answers | Spearman | Mean gap | Largest gap | Controller pairs ranked the same |
 |---|---|---|---|---|---|
-| `place` | 60 | 1.00 | 0.051 | 0.152 | 149 of 150 |
-| `blind` | 50 | 0.99 | 0.045 | 0.166 | 99 of 100 |
-| `constrained` | 60 | 0.99 | 0.033 | 0.094 | 146 of 147 |
+| `place` | 70 | 1.00 | 0.049 | 0.152 | 207 of 210 |
+| `blind` | 60 | 1.00 | 0.044 | 0.166 | 148 of 150 |
+| `constrained` | 70 | 0.99 | 0.032 | 0.094 | 204 of 207 |
 
-The gap is closed-form minus ns-3. It is negative for one answer of the 170, by 0.003.
+The gap is closed-form minus ns-3. It is negative for one answer of the 200, by 0.003.
 
 **Controllers**, mean ns-3 score with the closed-form score in brackets:
 
-| Task | Do-nothing | Random | k-means (3 calls) | RL (29 calls) | Search, 30 calls | Search, 4,000 calls | Reference, 200,000 calls |
-|---|---|---|---|---|---|---|---|
-| `place` | 0.21 (0.27) | 0.45 (0.48) | 0.63 (0.69) | 0.50 (0.54) | 0.59 (0.64) | 0.72 (0.79) | (0.83) |
-| `blind` | 0.22 (0.29) | 0.46 (0.49) | not allowed | 0.49 (0.53) | 0.55 (0.59) | not allowed | (0.82) |
-| `constrained` | 0.08 (0.11) | 0.22 (0.25) | 0.31 (0.35) | 0.29 (0.31) | 0.40 (0.43) | 0.52 (0.56) | (0.62) |
+| Task | Do-nothing | Random | k-means (3 calls) | RL, flat-trained (29 calls) | RL, scene-trained (29 calls) | Search, 30 calls | Search, 4,000 calls | Reference, 200,000 calls |
+|---|---|---|---|---|---|---|---|---|
+| `place` | 0.21 (0.27) | 0.45 (0.48) | 0.63 (0.69) | 0.50 (0.54) | 0.48 (0.52) | 0.59 (0.64) | 0.72 (0.79) | (0.83) |
+| `blind` | 0.22 (0.29) | 0.46 (0.49) | not allowed | 0.49 (0.53) | 0.50 (0.53) | 0.55 (0.59) | not allowed | (0.82) |
+| `constrained` | 0.08 (0.11) | 0.22 (0.25) | 0.31 (0.35) | 0.29 (0.31) | 0.37 (0.39) | 0.40 (0.43) | 0.52 (0.56) | (0.62) |
 
-The RL policies are the ones trained on flat ground; they were not retrained. The reference is
+**RL trained on the scene.** The flat-trained policies (`rl`) were trained on flat ground. The
+scene-trained ones (`rl_scene`, `experiments/train_rl.py <task> 600000 --scene
+cincinnati-downtown`) are trained the same way, with the same 600,000 steps, seed and
+observation, on generated scene instances (seeds below 90000). Retraining helps only on
+`constrained`. Paired by instance, ns-3, with a 95% bootstrap interval:
+
+| Task | Scene-trained minus flat-trained | Instances won | Scene-trained minus best other controller at 30 calls or fewer |
+|---|---|---|---|
+| `place` | −0.019 [−0.091, +0.044] | 5 of 10 | −0.147 [−0.199, −0.101] against k-means |
+| `blind` | +0.006 [−0.024, +0.037] | 6 of 10 | −0.051 [−0.087, −0.013] against search, 30 calls |
+| `constrained` | +0.075 [+0.012, +0.147] | 6 of 10 | −0.029 [−0.074, +0.016] against search, 30 calls |
+
+The policy does not see the buildings: its observation is the user map, its load, its
+neighbours and the constraints, and a move into a building is simply dropped. That it learns
+little more on the scene is therefore expected, and it stays the weakest learned or searched
+controller on `place`. Training takes about 2.5 h per task here (one thread each) against 45
+min on flat ground, because a scene episode costs about 4 times as much. Run it with
+`OMP_NUM_THREADS=1`: otherwise NumPy's threads compete and it is several times slower.
+
+The reference is
 the same 200,000-call search as on flat ground (`experiments/headroom.py`, closed-form scores,
 `experiments/results/headroom-public-cincinnati-downtown.jsonl`). At 4,000 calls search is
 within 0.04 of it on `place` and 0.06 on `constrained`; at 30 calls every controller is at least
@@ -360,4 +380,8 @@ in run 3 on two event instances (by 0.027 and 0.019) and one with drifting hotsp
 0.010). So the planner may still be the weaker
 search, and 0.005 is a lower bound on what foresight is worth. The event instances need three
 times the normal demand to show anything, all scores are closed-form, and the reacting plans
-were not run on the old channel (that run was stopped). No task has been added.
+were not run on the old channel (that run was stopped).
+
+**Decision: the moving task is dropped** (`PROTOCOL.md`, Settled). Moving pays, but reacting
+to the current users gets nearly all of it, so a moving task would measure `place` once per
+epoch rather than planning, which is what it was for.

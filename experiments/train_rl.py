@@ -1,8 +1,14 @@
 """Train the PPO baseline for one task on the closed-form scorer.
 
-  python experiments/train_rl.py place 300000
+  python experiments/train_rl.py place 300000 [seed] [--scene cincinnati-downtown]
 Instances are drawn fresh from the generator (seeds below 90000, never the public or held-out
-sets). Writes models/rl-<task>.pt and a learning curve to results/rl-<task>.jsonl.
+sets), on flat ground or on the scene. Writes models/rl-<task>[-<scene>].pt and a learning curve
+to results/rl-<task>[-<scene>].jsonl.
+
+Every time a point of the curve is written, the policy, the optimiser and both random states are
+saved to models/rl-<task>[-<scene>].ckpt. If that file exists the run continues from it, so a run
+that is stopped picks up where it was and ends as an uninterrupted one would. Delete it to start
+again.
 """
 import json
 import sys
@@ -15,10 +21,18 @@ import torch
 import skycellbench as ub
 from skycellbench.rl import STEPS, PlacementEnv, Policy
 
-task, total = sys.argv[1], int(sys.argv[2])
-seed = int(sys.argv[3]) if len(sys.argv) > 3 else 0
+args = sys.argv[1:]
+scene = None
+if "--scene" in args:
+    i = args.index("--scene")
+    scene = args[i + 1]
+    del args[i:i + 2]
+task, total = args[0], int(args[1])
+seed = int(args[2]) if len(args) > 2 else 0
+name = f"rl-{task}" + (f"-{scene}" if scene else "")
 root = Path(__file__).resolve().parent
 (root / "models").mkdir(exist_ok=True)
+MODEL, CKPT = root / "models" / f"{name}.pt", root / "models" / f"{name}.ckpt"
 rng = np.random.default_rng(seed)
 torch.manual_seed(seed)
 torch.set_num_threads(1)
@@ -30,15 +44,25 @@ opt = torch.optim.Adam(policy.parameters(), lr=LR)
 
 def new_env():
     k, n = rng.choice([3, 5, 8]), rng.choice([150, 200, 250])
-    inst = ub.generate(int(rng.integers(90000)), task, n_uav=int(k), n_users=int(n))
+    inst = ub.generate(int(rng.integers(90000)), task, n_uav=int(k), n_users=int(n), scene=scene)
     probe = None
     if task == "blind":
         probe = ub.Probe(inst)
     return PlacementEnv(inst.public(), probe), inst
 
 
-log = (root / "results" / f"rl-{task}.jsonl").open("w")
-steps, t0, finals = 0, time.time(), []
+steps, before, finals = 0, 0.0, []                 # before: minutes spent in earlier runs
+if CKPT.exists():
+    c = torch.load(CKPT, weights_only=False)
+    assert (c["task"], c["scene"], c["seed"]) == (task, scene, seed), "checkpoint of another run"
+    policy.load_state_dict(c["policy"])
+    opt.load_state_dict(c["opt"])
+    rng.bit_generator.state = c["rng"]
+    torch.set_rng_state(c["torch_rng"])
+    steps, before = c["steps"], c["minutes"]
+    print(f"continuing {name} from {steps} steps", flush=True)
+log = (root / "results" / f"{name}.jsonl").open("a" if steps else "w")
+t0 = time.time()
 while steps < total:
     buf = {k: [] for k in ("obs", "act", "logp", "ret", "adv")}
     for _ in range(N_EP):
@@ -82,10 +106,14 @@ while steps < total:
             torch.nn.utils.clip_grad_norm_(policy.parameters(), 0.5)
             opt.step()
     if len(finals) >= 160:
-        row = dict(steps=steps, score=float(np.mean(finals)), minutes=(time.time() - t0) / 60)
+        minutes = before + (time.time() - t0) / 60
+        row = dict(steps=steps, score=float(np.mean(finals)), minutes=minutes)
         log.write(json.dumps(row) + "\n")
         log.flush()
         print(json.dumps(row), flush=True)
         finals = []
-        torch.save(policy.state_dict(), root / "models" / f"rl-{task}.pt")
-torch.save(policy.state_dict(), root / "models" / f"rl-{task}.pt")
+        torch.save(policy.state_dict(), MODEL)
+        torch.save(dict(task=task, scene=scene, seed=seed, steps=steps, minutes=minutes,
+                        policy=policy.state_dict(), opt=opt.state_dict(),
+                        rng=rng.bit_generator.state, torch_rng=torch.get_rng_state()), CKPT)
+torch.save(policy.state_dict(), MODEL)

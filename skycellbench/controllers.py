@@ -46,10 +46,20 @@ def search30(inst, probe, rng):
 
 
 def rl(inst, probe, rng):
-    """PPO policy trained per task on generated instances; one rollout, no search."""
+    """PPO policy trained per task on generated instances on flat ground; one rollout, no
+    search."""
     from .rl import load_policy, rl_placement
     return rl_placement(inst, load_policy(MODELS / f"rl-{inst.task}.pt"), probe)
 
 
+def rl_scene(inst, probe, rng):
+    """The same, with the policy trained on generated instances on the instance's scene
+    (experiments/train_rl.py --scene). None on flat ground."""
+    if not inst.scene:
+        return None
+    from .rl import load_policy, rl_placement
+    return rl_placement(inst, load_policy(MODELS / f"rl-{inst.task}-{inst.scene}.pt"), probe)
+
+
 ALL = {"centre": centre, "random": random, "kmeans": kmeans, "search": search,
-       "search30": search30, "rl": rl}
+       "search30": search30, "rl": rl, "rl_scene": rl_scene}
