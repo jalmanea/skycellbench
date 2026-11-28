@@ -120,7 +120,24 @@ The instances, every answer (positions), both scores per answer, the scripts, an
 
 ## 8. Deviations
 
-None yet.
+1. **2026-11-28: the held-out run is scored on Ibex, and ns-3 scores depend on the machine.**
+   Every checked score so far came from one macOS machine (Apple ARM, clang). The held-out run is
+   on Ibex (KAUST): Linux x86-64, gcc 12.2, the same ns-3.48 sources (all 2,685 source files have
+   the same SHA-256) built in the release profile, and the same Python, NumPy, SciPy and PyTorch
+   versions. `experiments/ns3_machine_check.py` rescored on Ibex the 370 answers of the two
+   public sets that had been scored on macOS:
+   - Closed-form scores: the same to 0.006 at most; 362 of 370 identical.
+   - ns-3 scores: identical for 76 of 370. The difference is 0.0003 at the median, 0.016 at the
+     90th percentile and 0.080 at most; Ibex is higher by 0.005 on average. Answers with all UAVs
+     at the centre are identical; answers with 8 UAVs differ most. The likely cause is
+     floating-point differences between the two builds that change LTE decisions taken at a
+     threshold.
+   - Rankings do not depend on the machine: 962 of 970 controller pairs on the same instance are
+     in the same order, the order of the controllers' mean scores is the same for every task on
+     both sets, and Spearman between the machines is 0.990 to 0.999 per task.
+   So every reported ns-3 score comes from Ibex and no score from another machine is mixed in.
+   Single scores are comparable only to scores from the same build; comparisons between
+   controllers are not affected. Rows record their host and commit.
 
 ## Checked on the public set
 
