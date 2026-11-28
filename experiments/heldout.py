@@ -16,8 +16,8 @@ calls to the closed-form scorer and to the RL environment's feedback on place an
 probes on blind. A controller that used more than its track allows, or returned an answer that
 breaks a rule, is marked and scores 0.
 
-On a held-out set the run refuses to start unless the working tree is clean, so that the
-commit recorded with every row is what was run. Any other set (a public one, as a trial) runs
+On a held-out set the run refuses to start unless the working tree is clean apart from
+experiments/results/, so that the commit recorded with every row is what was run. Any other set (a public one, as a trial) runs
 from any tree.
 """
 from __future__ import annotations
@@ -115,7 +115,9 @@ def main():
     workers = int(sys.argv[2]) if len(sys.argv) > 2 else os.cpu_count()
     files = sorted((ROOT / "instances" / name).glob("*.json"))
     assert files, f"no instances in instances/{name}"
-    dirty = git("status", "--porcelain")
+    # results written by this or another run of the same commit do not make the tree unclean
+    dirty = "\n".join(l for l in git("status", "--porcelain").splitlines()
+                      if not l[3:].startswith("experiments/results/"))
     if name.startswith("heldout") and dirty:
         sys.exit("held-out run refused: the working tree has uncommitted changes:\n" + dirty)
     out = ROOT / "experiments" / "results" / "heldout" / f"{name}.jsonl"
