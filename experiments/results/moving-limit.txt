@@ -1,0 +1,60 @@
+# How much of the value of moving is left under a speed limit? experiments/moving_limit.py, summarised by
+# experiments/analyse_scene.py limit. One search under every limit, from fixed UAVs to no limit; each limit
+# starts from the answer of the one before. The search knows where the users will be in every epoch.
+# These gains are lower bounds: experiments/moving_react.py and moving_foresight.py later found better plans
+# under several limits and with no limit (results/moving-foresight.txt).
+
+one search under every speed limit (2000 calls per round); closed-form scores
+columns: score with fixed UAVs, then the gain over it at each limit, metres per epoch
+
+drift, scene
+  instance                    fixed     50    100    150    300    600   1000   none   free plan step, median / 90% (m)
+  moving-drift-1-k3-n150      0.806  0.020  0.027  0.030  0.034  0.037  0.037  0.038   98 / 242
+  moving-drift-2-k5-n200      0.867  0.009  0.012  0.014  0.020  0.028  0.034  0.036   78 / 317
+  moving-drift-3-k8-n250      0.866  0.043  0.053  0.059  0.064  0.066  0.066  0.066   58 / 200
+  moving-drift-4-k5-n150      0.835  0.033  0.042  0.046  0.048  0.051  0.054  0.064   110 / 528
+  mean                        0.844  0.026  0.033  0.037  0.041  0.046  0.048  0.051
+  share of the free gain               52%    66%    73%    81%    90%    94%   100%
+  instances with gain > 0.05             0      1      1      1      2      2      2
+  fixed UAVs, mean score after rounds 2, 4, 6: 0.843, 0.844, 0.844; in moving_scene.py: static 0.822, free 0.873
+
+drift, old channel, same users
+  instance                    fixed     50    100    150    300    600   1000   none   free plan step, median / 90% (m)
+  moving-drift-1-k3-n150      0.833  0.008  0.011  0.014  0.014  0.020  0.021  0.021   98 / 263
+  moving-drift-2-k5-n200      0.872  0.011  0.013  0.014  0.014  0.014  0.015  0.015   42 / 136
+  moving-drift-3-k8-n250      0.970  0.009  0.010  0.011  0.011  0.012  0.012  0.012   40 / 86
+  moving-drift-4-k5-n150      0.896  0.021  0.027  0.028  0.028  0.035  0.036  0.042   92 / 441
+  mean                        0.893  0.012  0.015  0.016  0.017  0.020  0.021  0.023
+  share of the free gain               54%    68%    73%    74%    89%    92%   100%
+  instances with gain > 0.05             0      0      0      0      0      0      0
+  fixed UAVs, mean score after rounds 2, 4, 6: 0.892, 0.893, 0.893; in moving_scene.py: static 0.880, free 0.902
+
+events3, scene
+  instance                    fixed     50    100    150    300    600   1000   none   free plan step, median / 90% (m)
+  moving-events3-1-k3-n150    0.757  0.023  0.031  0.035  0.054  0.067  0.071  0.102   197 / 681
+  moving-events3-2-k5-n200    0.756  0.050  0.061  0.068  0.085  0.092  0.094  0.095   89 / 284
+  moving-events3-3-k8-n250    0.803  0.050  0.066  0.072  0.079  0.085  0.089  0.089   75 / 275
+  moving-events3-4-k5-n150    0.805  0.044  0.057  0.064  0.080  0.090  0.094  0.098   201 / 523
+  moving-events3-5-k3-n150    0.824  0.030  0.036  0.050  0.056  0.061  0.088  0.090   293 / 476
+  moving-events3-6-k5-n200    0.719  0.091  0.105  0.114  0.134  0.137  0.137  0.139   86 / 244
+  moving-events3-7-k8-n250    0.812  0.044  0.059  0.065  0.074  0.077  0.082  0.083   92 / 233
+  moving-events3-8-k5-n150    0.776  0.060  0.074  0.084  0.091  0.102  0.105  0.127   338 / 816
+  mean                        0.782  0.049  0.061  0.069  0.082  0.089  0.095  0.103
+  share of the free gain               48%    60%    67%    79%    86%    92%   100%
+  instances with gain > 0.05             3      6      6      8      8      8      8
+  fixed UAVs, mean score after rounds 2, 4, 6: 0.778, 0.780, 0.782; in moving_scene.py: static 0.745, free 0.843
+
+events3, old channel, same users
+  instance                    fixed     50    100    150    300    600   1000   none   free plan step, median / 90% (m)
+  moving-events3-1-k3-n150    0.809  0.015  0.024  0.028  0.034  0.035  0.035  0.051   135 / 649
+  moving-events3-2-k5-n200    0.782  0.026  0.037  0.041  0.049  0.053  0.059  0.069   144 / 624
+  moving-events3-3-k8-n250    0.861  0.021  0.025  0.028  0.029  0.030  0.030  0.031   90 / 466
+  moving-events3-4-k5-n150    0.841  0.030  0.042  0.045  0.048  0.051  0.052  0.060   129 / 502
+  moving-events3-5-k3-n150    0.860  0.014  0.016  0.017  0.021  0.021  0.043  0.044   194 / 655
+  moving-events3-6-k5-n200    0.743  0.031  0.055  0.065  0.069  0.075  0.095  0.096   132 / 442
+  moving-events3-7-k8-n250    0.780  0.030  0.041  0.048  0.052  0.055  0.060  0.067   74 / 376
+  moving-events3-8-k5-n150    0.824  0.023  0.033  0.036  0.037  0.051  0.059  0.081   203 / 646
+  mean                        0.812  0.024  0.034  0.038  0.042  0.046  0.054  0.062
+  share of the free gain               38%    55%    62%    68%    74%    87%   100%
+  instances with gain > 0.05             0      1      1      2      5      5      6
+  fixed UAVs, mean score after rounds 2, 4, 6: 0.812, 0.812, 0.812; in moving_scene.py: static 0.798, free 0.861

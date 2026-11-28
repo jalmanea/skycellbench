@@ -1,0 +1,17 @@
+k-means against the reference search, both scorers; gap = reference minus k-means
+
+constrained
+  scene       ns-3         10 instances  k-means 0.313  reference 0.566  gap 0.253 (min 0.101)
+  scene       closed-form  10 instances  k-means 0.347  reference 0.613  gap 0.266 (min 0.094)
+  old channel ns-3         10 instances  k-means 0.227  reference 0.511  gap 0.284 (min 0.077)
+  old channel closed-form  10 instances  k-means 0.250  reference 0.569  gap 0.319 (min 0.178)
+  gap on the scene minus gap on the old channel, ns-3: mean -0.031, larger on the scene in 4 of 10
+  gap on the scene minus gap on the old channel, closed-form: mean -0.053, larger on the scene in 3 of 10
+
+place
+  scene       ns-3         10 instances  k-means 0.631  reference 0.735  gap 0.104 (min 0.055)
+  scene       closed-form  10 instances  k-means 0.688  reference 0.821  gap 0.133 (min 0.072)
+  old channel ns-3         10 instances  k-means 0.702  reference 0.750  gap 0.048 (min 0.009)
+  old channel closed-form  10 instances  k-means 0.767  reference 0.843  gap 0.076 (min 0.039)
+  gap on the scene minus gap on the old channel, ns-3: mean +0.056, larger on the scene in 10 of 10
+  gap on the scene minus gap on the old channel, closed-form: mean +0.057, larger on the scene in 9 of 10

@@ -3,6 +3,7 @@
   python experiments/analyse_scene.py gap <set> [calls]   results/scene-gap-<set>.jsonl
   python experiments/analyse_scene.py moving [calls]      results/moving-scene.jsonl
   python experiments/analyse_scene.py limit [calls]       results/moving-limit.jsonl
+  python experiments/analyse_scene.py foresight           results/moving-foresight.jsonl
 """
 import json
 import sys
@@ -99,8 +100,40 @@ def limit(calls=None):
                   f"static {old[:, 0].mean():.3f}, free {old[:, 1].mean():.3f}")
 
 
+def foresight():
+    rows = [json.loads(l) for l in (root / "moving-foresight.jsonl").open()]
+    print("scene; closed-form scores. react = each epoch the best positions in reach for the users "
+          "of that epoch;\nreact home = the same from the best fixed positions; planned = the search "
+          "that knows every epoch,\nstarted from the best plan known under the limit. Gains are "
+          "over fixed UAVs.")
+    for kind in sorted({r["kind"] for r in rows}):
+        rs = sorted((r for r in rows if r["kind"] == kind), key=lambda r: r["inst"])
+        fx = np.array([r["fixed"] for r in rs])
+        fr = np.array([r["free"] for r in rs])
+        print(f"\n{kind}, {len(rs)} instances")
+        print(f"  {'instance':<26}{'fixed':>7}{'before':>8}{'free':>7}   best react / planned per limit")
+        for r in rs:
+            print(f"  {r['inst']:<26}{r['fixed']:>7.3f}{r['fixed_start']:>8.3f}{r['free']:>7.3f}   "
+                  + "   ".join(f"{max(l['react'], l['react_home']):.3f} / {l['planned']:.3f}"
+                               for l in r["limits"]))
+        print(f"  fixed: mean {fx.mean():.3f}, before this search {np.mean([r['fixed_start'] for r in rs]):.3f}; "
+              f"free minus fixed: mean {np.mean(fr - fx):.3f}, min {np.min(fr - fx):.3f}")
+        print(f"  {'limit':>7}{'react':>8}{'home':>8}{'planned':>9}{'planned - best react: mean, max':>34}"
+              f"{'instances above 0.05: react, home, planned':>46}")
+        for i, l0 in enumerate(rs[0]["limits"]):
+            L = [r["limits"][i] for r in rs]
+            re, rh, pl = (np.array([l[k] for l in L]) for k in ("react", "react_home", "planned"))
+            add = pl - np.maximum(re, rh)
+            print(f"  {l0['limit']:>7.0f}{np.mean(re - fx):>8.3f}{np.mean(rh - fx):>8.3f}"
+                  f"{np.mean(pl - fx):>9.3f}{add.mean():>22.3f}, {add.max():.3f}"
+                  f"{int((re - fx > 0.05).sum()):>30d}, {int((rh - fx > 0.05).sum())}, "
+                  f"{int((pl - fx > 0.05).sum())}")
+
+
 if __name__ == "__main__":
-    if sys.argv[1] == "limit":
+    if sys.argv[1] == "foresight":
+        foresight()
+    elif sys.argv[1] == "limit":
         limit(int(sys.argv[2]) if len(sys.argv) > 2 else None)
     elif sys.argv[1] == "gap":
         gap(sys.argv[2], int(sys.argv[3]) if len(sys.argv) > 3 else None)

@@ -107,8 +107,9 @@ Each run has 0.5 s to attach, 0.3 s of traffic to settle and 2 s that are measur
   `instances/public-cincinnati-downtown`: the public seeds on the scene. There is no held-out
   set on the scene yet.
 - `experiments/`: link-curve measurement, scorer agreement check, RL training, controller
-  comparison, reference search, the two scene checks (`scene_gap.py`, `moving_scene.py`), and
-  their results.
+  comparison, reference search, the scene checks (`scene_gap.py`, `scene_gap_ns3.py`,
+  `los_curve.py`), the moving-users tests (`moving_scene.py`, `moving_limit.py`,
+  `moving_react.py`, `moving_foresight.py`), and their results.
 - `viewer/`: a static web page that shows a scene, an instance and an answer in 3-D (below).
 - `tests/`: `python -m pytest tests`.
 
@@ -226,18 +227,24 @@ The gap is closed-form minus ns-3. It is negative for one answer of the 170, by 
 
 **Controllers**, mean ns-3 score with the closed-form score in brackets:
 
-| Task | Do-nothing | Random | k-means (3 calls) | RL (29 calls) | Search, 30 calls | Search, 4,000 calls | Reference, 50,000 calls |
+| Task | Do-nothing | Random | k-means (3 calls) | RL (29 calls) | Search, 30 calls | Search, 4,000 calls | Reference, 200,000 calls |
 |---|---|---|---|---|---|---|---|
-| `place` | 0.21 (0.27) | 0.45 (0.48) | 0.63 (0.69) | 0.50 (0.54) | 0.59 (0.64) | 0.72 (0.79) | (0.82) |
-| `blind` | 0.22 (0.29) | 0.46 (0.49) | not allowed | 0.49 (0.53) | 0.55 (0.59) | not allowed | not run |
-| `constrained` | 0.08 (0.11) | 0.22 (0.25) | 0.31 (0.35) | 0.29 (0.31) | 0.40 (0.43) | 0.52 (0.56) | (0.61) |
+| `place` | 0.21 (0.27) | 0.45 (0.48) | 0.63 (0.69) | 0.50 (0.54) | 0.59 (0.64) | 0.72 (0.79) | (0.83) |
+| `blind` | 0.22 (0.29) | 0.46 (0.49) | not allowed | 0.49 (0.53) | 0.55 (0.59) | not allowed | (0.82) |
+| `constrained` | 0.08 (0.11) | 0.22 (0.25) | 0.31 (0.35) | 0.29 (0.31) | 0.40 (0.43) | 0.52 (0.56) | (0.62) |
 
-The RL policies are the ones trained on flat ground; they were not retrained. The reference here
-is a 50,000-call search, not the 200,000 calls used on flat ground.
+The RL policies are the ones trained on flat ground; they were not retrained. The reference is
+the same 200,000-call search as on flat ground (`experiments/headroom.py`, closed-form scores,
+`experiments/results/headroom-public-cincinnati-downtown.jsonl`). At 4,000 calls search is
+within 0.04 of it on `place` and 0.06 on `constrained`; at 30 calls every controller is at least
+0.14 below it on `place`, 0.21 on `blind` and 0.19 on `constrained`. No controller beats it on
+any instance. The gap check below used a shorter reference of 50,000 calls, which is 0.01 lower
+on average (0.04 at most on one instance).
 
 **Does the scene make position matter more?** `experiments/scene_gap.py` compares the k-means
 answer with the reference search, on the scene and on the old channel with the same users (the
-same instance with its scene removed). Closed-form scores, 10 instances per task:
+same instance with its scene removed). Closed-form scores, 10 instances per task, 50,000-call
+reference search on both channels:
 
 | Task | Scene: k-means, reference, gap | Old channel: k-means, reference, gap | Gap larger on the scene in |
 |---|---|---|---|
@@ -250,6 +257,18 @@ does better on the scene. There the chain to the gateway keeps the UAVs far from
 (650 m on average for k-means), where the old channel gives almost no line of sight to anyone,
 while real streets give it to some: the mean excess loss on the serving link of the k-means
 answers is 11.9 dB on the scene against 15.4 dB on the old channel.
+
+ns-3 agrees (`experiments/scene_gap_ns3.py` scores the same 80 answers with it; results in
+`experiments/results/scene-gap-ns3-public-cincinnati-downtown.txt`):
+
+| Task | Scene, ns-3: k-means, reference, gap | Old channel, ns-3: k-means, reference, gap | Gap larger on the scene in |
+|---|---|---|---|
+| `place` | 0.631, 0.735, **0.104** | 0.702, 0.750, **0.048** | 10 of 10 instances |
+| `constrained` | 0.313, 0.566, **0.253** | 0.227, 0.511, **0.284** | 4 of 10 instances |
+
+Every gap is smaller under ns-3 than closed-form, by 0.01 to 0.04, but the difference between the
+scene and the old channel is the same on `place` (+0.056 against +0.057) and has the same sign
+on `constrained` (-0.031 against -0.053).
 
 `experiments/los_curve.py` measures the cause over the whole scene
 (`experiments/results/los-curve.txt`; 1.2 million links between random outdoor points and random
@@ -291,9 +310,54 @@ The scene about doubles what free movement is worth. With drifting hotspots it i
 0.05 line and not clearly above it: the static search had fewer calls than the free one, and with
 four times as many the two largest differences fell from 0.076 and 0.069 to 0.062 and 0.050
 (`experiments/moving_static_check.py`). With short events it is above the line on all four
-instances (0.088 and 0.086 on the two rechecked). But no plan that respects a speed limit came
-close to it: the whole-trajectory search gained 0.004 on average, and following the users epoch
-by epoch was as often worse than staying put as better. Whether that is the limit being too
-tight for the distance between sites or the searches being too weak is not known, so there is no
-evidence yet that such a task would reward planning. A first version of the event instances,
+instances (0.088 and 0.086 on the two rechecked). In that run no plan that respects a speed
+limit came close to it: the whole-trajectory search gained 0.004 on average, and following the users epoch
+by epoch was as often worse than staying put as better. A first version of the event instances,
 with the normal demand, was too easy to show anything: static UAVs already scored 1.0.
+
+**That was the searches, not the limit, and moving pays; planning does not.** Three further runs
+on the same instances and on four more event instances, all closed-form and on the scene unless
+said otherwise (`experiments/results/moving-limit.txt`, `moving-foresight.txt`):
+
+1. `experiments/moving_limit.py` runs one and the same search under every limit, from fixed UAVs
+   to no limit. It moves one UAV at a time, finds that UAV's best path through a set of
+   candidate positions exactly, and polishes with random moves. It knows where the users will be
+   in every epoch.
+2. `experiments/moving_react.py` lets the UAVs react: in every epoch they take the best positions
+   within reach for the users of that epoch, and nothing of later epochs is used. Epoch 0 is
+   either the best placement for its own users or lies within reach of the best fixed positions.
+3. `experiments/moving_foresight.py` runs the search of 1 again, from the best plan known under
+   each limit and with the positions of all plans found so far as candidates. What it adds to
+   the better reacting plan is what knowing the future gave the search.
+
+Mean gain over fixed UAVs after run 3:
+
+| | Fixed | Limit, m per epoch | 100 | 150 | 300 | 600 | none |
+|---|---|---|---|---|---|---|---|
+| short events, 8 instances | 0.788 | reacting | 0.057 | 0.065 | 0.089 | 0.097 | |
+| | | reacting from the fixed positions | 0.060 | 0.072 | 0.083 | 0.091 | |
+| | | planned, every epoch known | 0.070 | 0.080 | 0.095 | 0.102 | 0.115 |
+| | | planned minus the better reacting plan | 0.004 | 0.004 | 0.005 | 0.003 | |
+| drifting hotspots, 4 instances | 0.846 | reacting | 0.027 | 0.039 | 0.051 | 0.055 | |
+| | | reacting from the fixed positions | 0.036 | 0.041 | 0.051 | 0.051 | |
+| | | planned, every epoch known | 0.040 | 0.048 | 0.056 | 0.058 | 0.063 |
+| | | planned minus the better reacting plan | 0.002 | 0.005 | 0.004 | 0.003 | |
+
+- Moving pays on the scene when demand comes in short events. Free movement is worth 0.115 over
+  fixed UAVs (0.103 at least on every instance), and UAVs that only react gain more than 0.05 on
+  4 of the 8 instances at 100 m per epoch, 6 at 150 m and all 8 from 300 m. With drifting
+  hotspots free movement is worth 0.063 (0.044 at least) and reacting passes 0.05 on 2 of the 4
+  instances at best. On the old channel run 1 found less at every limit: 0.038 at 150 m and
+  0.062 with no limit for events, 0.016 and 0.023 for drifting hotspots.
+- Knowing the future adds almost nothing: 0.005 at most on average and 0.017 at most on any
+  instance and limit. A task built on these instances would test following the users under a
+  reach limit, which is `place` again in every epoch, and not planning.
+
+What this does not show. Every number is the best a search found, not an optimum, and the
+searches were wrong twice here: the reacting plans of run 2 beat the plans of run 1 at most
+limits, and the fixed plans, which run 1 no longer improved after two of six rounds, rose again
+in run 3 on two event instances (by 0.027 and 0.019) and one with drifting hotspots (by
+0.010). So the planner may still be the weaker
+search, and 0.005 is a lower bound on what foresight is worth. The event instances need three
+times the normal demand to show anything, all scores are closed-form, and the reacting plans
+were not run on the old channel (that run was stopped). No task has been added.

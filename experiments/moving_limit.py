@@ -32,13 +32,14 @@ from scipy.optimize import linear_sum_assignment
 
 import moving_scene as ms
 import skycellbench as ub
-from skycellbench.baselines import ROOF_CLEARANCE_M
+from skycellbench.baselines import ROOF_CLEARANCE_M, local_search
 from skycellbench.fast import _snapshot
 from skycellbench.instance import TOLERANCE_M
 
 OUT = Path(__file__).resolve().parent / "results" / "moving-limit.jsonl"
 LIMITS = (0.0, 50.0, 100.0, 150.0, 300.0, 600.0, 1000.0, None)        # metres per epoch
-CASES = [c[:4] for c in ms.CASES if c[0] != "events"]
+CASES = [c[:4] for c in ms.CASES if c[0] != "events"] + [          # four more event instances
+    ("events3", 5, 3, 150), ("events3", 6, 5, 200), ("events3", 7, 8, 250), ("events3", 8, 5, 150)]
 ROUNDS, ROUNDS_FIXED = 2, 6
 
 
@@ -179,10 +180,19 @@ def run(job):
     inst = ms.moving_instance(kind, seed, k, n, None)
     if channel == "statistical":
         inst = dataclasses.replace(inst, scene=None)
-    old = next(r for r in map(json.loads, ms.OUT.open())
-               if r["inst"] == inst.id and r["channel"] == channel)
+    old = next((r for r in map(json.loads, ms.OUT.open())
+                if r["inst"] == inst.id and r["channel"] == channel), None)
     rng = np.random.default_rng([seed, 11])
-    fixed0, free0 = np.array(old["plans"]["static"]), np.array(old["plans"]["free"])
+    if old is None:                    # not in moving_scene.py: the same two searches, here
+        each = [ms.epoch_instance(inst, e) for e in range(inst.n_epochs)]
+        fixed0 = local_search(each[0], rng, budget=3000, score=lambda u: ub.score_fast(
+            inst, np.repeat(u, inst.n_epochs, axis=0))["score"])
+        free0 = np.array([local_search(ie, rng, budget=3000, start=fixed0)[0] for ie in each])
+        fixed0 = np.repeat(fixed0, inst.n_epochs, axis=0)
+        old = dict(static=round(ub.score_fast(inst, fixed0)["score"], 4),
+                   free=round(ub.score_fast(inst, free0)["score"], 4))
+    else:
+        fixed0, free0 = np.array(old["plans"]["static"]), np.array(old["plans"]["free"])
     se = Search(inst, [fixed0, free0], rng)
     home, ok = se.lift(fixed0[0])      # stored plans are rounded; lift what that put in a roof
     assert ok.all()
